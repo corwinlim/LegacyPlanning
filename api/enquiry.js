@@ -24,16 +24,8 @@ module.exports = async (req, res) => {
   const key=createHash('sha256').update(text).digest('hex');
   let emailAccepted;
   try {
-    emailAccepted=await send('https://api.resend.com/emails',{'Authorization':`Bearer ${process.env.RESEND_API_KEY}`,'Idempotency-Key':key},{from:process.env.ENQUIRY_EMAIL_FROM,to:['corwindamansara@gmail.com'],reply_to:email,subject:`Legacy Planning appointment request — ${service}`,text});
+    emailAccepted=await send('https://api.resend.com/emails',{'Authorization':`Bearer ${process.env.RESEND_API_KEY}`,'Idempotency-Key':key},{from:process.env.ENQUIRY_EMAIL_FROM,to:['corwindamansara@gmail.com'],reply_to:email,subject:`Legacy Planning appointment request — ${service}`,text:`Reference: ${key.slice(0,12)}\n${text}`});
   } catch {emailAccepted=false;}
   if (!emailAccepted) return res.status(502).json({code:'EMAIL_FAILED'});
-  let whatsapp='not_configured';
-  // An approved template is required to initiate a WhatsApp Business notification.
-  if (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ENQUIRY_TEMPLATE) {
-    try {
-      const ok=await send(`https://graph.facebook.com/v22.0/${encodeURIComponent(process.env.WHATSAPP_PHONE_NUMBER_ID)}/messages`,{'Authorization':`Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`},{messaging_product:'whatsapp',to:'60108106717',type:'template',template:{name:process.env.WHATSAPP_ENQUIRY_TEMPLATE,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en'},components:[{type:'body',parameters:[{type:'text',text:text.replace(/\s+/g,' ')}]}]}});
-      whatsapp=ok?'accepted':'failed';
-    } catch {whatsapp='failed';}
-  }
-  return res.status(200).json({email:'accepted',whatsapp});
+  return res.status(200).json({email:'accepted'});
 };

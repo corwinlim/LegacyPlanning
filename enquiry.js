@@ -2,7 +2,6 @@
   const form = document.getElementById('enquiry-form');
   const note = form.elements.note;
   const feedback = document.getElementById('form-feedback');
-  const whatsapp = document.getElementById('whatsapp-followup');
   const submit = form.querySelector('button[type="submit"]');
   let completed = false;
   const t = key => translations[document.getElementById('lang').value][key] || translations.en[key];
@@ -13,13 +12,7 @@
     document.getElementById('note-counter').textContent = `${count} / 200`;
     note.setCustomValidity(count > 200 ? t('noteTooLong') : '');
   }
-  function updateWhatsApp() {
-    const text = ['Legacy Planning — Appointment Request',
-      `Name: ${form.elements.name.value.trim()}`, `Phone: ${form.elements.phone.value.trim()}`,
-      `Email: ${form.elements.email.value.trim()}`, `Topic: ${form.elements.service.value}`,
-      `Note: ${note.value.trim() || '—'}`].join('\n');
-    whatsapp.href = 'https://wa.me/60108106717?text=' + encodeURIComponent(text);
-  }
+
   note.addEventListener('input', updateCount);
   document.getElementById('lang').addEventListener('change', () => {
     updateCount();
@@ -30,10 +23,9 @@
     event.preventDefault();updateCount();
     if (completed || !form.reportValidity()) return;
     submit.disabled = true;submit.textContent = t('sending');
-    feedback.textContent = '';whatsapp.hidden = true;
+    feedback.textContent = '';
     const payload = Object.fromEntries(new FormData(form));
     payload.language = document.getElementById('lang').value;
-    updateWhatsApp();
     try {
       const controller = new AbortController();const timeout = setTimeout(() => controller.abort(), 35000);
       let response;
@@ -43,15 +35,13 @@
       if (!response.ok || result.email !== 'accepted') {
         feedback.dataset.state = 'error';
         feedback.textContent = result.code === 'NOT_CONFIGURED' ? t('unavailable') : t('failed');
-        whatsapp.hidden = false;feedback.focus();return;
+        feedback.focus();return;
       }
       completed = true;feedback.dataset.state = 'success';
       feedback.textContent = t('success');
-      // A WhatsApp link prepares a message; the visitor still needs to confirm Send.
-      whatsapp.hidden = result.whatsapp === 'accepted';
       feedback.focus();
     } catch {
-      feedback.dataset.state = 'error';feedback.textContent = t('failed');whatsapp.hidden = false;feedback.focus();
+      feedback.dataset.state = 'error';feedback.textContent = t('failed');feedback.focus();
     } finally {
       submit.disabled = completed;submit.textContent = t('submit');
     }

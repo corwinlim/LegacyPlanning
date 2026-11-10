@@ -1,26 +1,13 @@
-# Appointment enquiry delivery
+# Email-only appointment requests
 
-This draft adds a real form with name, phone, email, topic, optional note (200 words; Han characters count individually), consent and explicit delivery feedback. It is not ready to merge until the owner's sending services are connected and tested.
+The form collects name, phone, email, one of four topics, an optional 200-word note and consent. English and Chinese share the neutral family image; Malay retains the original image.
 
-## Sending services
+## Required before enabling the form
 
-The current adapter supports Resend and Meta WhatsApp Cloud API. Adapt it if the owner uses a different provider. Configure secrets in Vercel project settings, never in repository files or chat.
+The owner has an existing sending service and must provide its name and connection details. The current adapter supports Resend. For Resend, configure `RESEND_API_KEY` and `ENQUIRY_EMAIL_FROM` (an address on a verified sender domain) in Vercel. Never commit keys or paste them into chat. If another provider is used, adapt the server-side sender first.
 
-- `RESEND_API_KEY`: Resend sending key.
-- `ENQUIRY_EMAIL_FROM`: address on a sender domain verified by that Resend account.
-- `WHATSAPP_ACCESS_TOKEN`: Meta token with permission to send messages.
-- `WHATSAPP_PHONE_NUMBER_ID`: sender's WhatsApp Business phone-number ID (not the receiving number).
-- `WHATSAPP_ENQUIRY_TEMPLATE`: approved notification template whose body contains one text parameter for the enquiry summary.
-- `WHATSAPP_TEMPLATE_LANGUAGE`: approved template language code, default `en`.
+The sole destination is `corwindamansara@gmail.com`, fixed server-side. The email contains all enquiry fields, consent and a reference, and serves as the appointment request record. There is no separate database or application log of personal details. No WhatsApp API, links or notifications are used.
 
-Email destination is fixed server-side at `corwindamansara@gmail.com`; WhatsApp destination is `60108106717`. A provider accepting a message does not prove inbox/handset delivery. Confirm both with the owner in a synthetic end-to-end test before enabling the public form. WhatsApp templates and consent/opt-in requirements must match the business account's setup.
+Missing configuration returns 503. Invalid inputs return 400. Email-provider failure returns 502. Only provider acceptance produces a success message; it does not prove inbox delivery or confirm an appointment. Confirm receipt of a synthetic request with the owner before enabling the public form.
 
-## Behaviour
-
-No email configuration: HTTP 503 and no success message. Invalid inputs: HTTP 400. Email provider failure: HTTP 502. Email accepted: show acceptance, never a confirmed appointment. WhatsApp acceptance is reported separately; if automatic WhatsApp cannot be confirmed, show a prefilled WhatsApp link that the visitor must send manually. That link is not automatic delivery.
-
-Email retries use a content-derived Resend idempotency key. The form retains input on errors and prevents duplicate clicks. No personal information is written to local storage or application logs. The honeypot is a basic spam filter; configure the chosen provider's abuse controls for a public launch.
-
-## Verification already completed
-
-Mocked API tests: required fields/consent, service allowlist, word limits in English and Chinese, missing configuration, fixed recipients, success and failure responses. Browser tests: all three languages, language-specific hero, 390px layout, note limit, preserved input on errors, WhatsApp fallback and duplicate-submit prevention. No real messages were sent by those tests.
+Retries use a content-derived Resend idempotency key. The form retains inputs on errors and prevents duplicate clicks. English and Chinese note limits are validated on both client and server. The honeypot provides basic spam filtering; use the selected provider's abuse controls for a public launch.
