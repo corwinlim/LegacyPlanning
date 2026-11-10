@@ -34,7 +34,15 @@ module.exports = async (req, res) => {
       text: `Reference: ${key.slice(0,12)}\nSubmitted at: ${new Date().toISOString()}\n${text}`
     });
     emailAccepted = info.accepted.some(address => address.toLowerCase() === 'corwindamansara@gmail.com');
-  } catch {emailAccepted = false;}
+  } catch (error) {
+    // Log only diagnostic codes, never credentials, SMTP responses or enquiry fields.
+    console.error('appointment_smtp_failure', JSON.stringify({
+      code: typeof error.code === 'string' ? error.code : 'UNKNOWN',
+      responseCode: typeof error.responseCode === 'number' ? error.responseCode : null,
+      command: ['AUTH PLAIN','AUTH LOGIN','CONN','EHLO','MAIL FROM','RCPT TO','DATA'].includes(error.command) ? error.command : null
+    }));
+    emailAccepted = false;
+  }
   finally {transport.close();}
   if (!emailAccepted) return res.status(502).json({code:'EMAIL_FAILED'});
   return res.status(200).json({email:'accepted'});
