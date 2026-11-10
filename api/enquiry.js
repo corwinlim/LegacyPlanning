@@ -1,0 +1,39 @@
+const { createHash } = require('node:crypto');
+const services = new Set(['Will Writing', 'Trust', 'Estate Planning', 'Estate Execution Plan']);
+const wordCount = value => (value.replace(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])/gu, ' $1 ').match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || []).length;
+async function send(url, headers, payload) {
+  const response = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)});
+  return response.ok;
+}
+module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method !== 'POST') {res.setHeader('Allow','POST');return res.status(405).json({code:'METHOD_NOT_ALLOWED'});}
+  if (!String(req.headers['content-type'] || '').startsWith('application/json')) return res.status(415).json({code:'JSON_REQUIRED'});
+  if (req.headers.origin && req.headers.origin !== 'https://legacyplanning.vercel.app' && req.headers.origin !== `https://${process.env.VERCEL_URL}`) return res.status(403).json({code:'INVALID_ORIGIN'});
+  let data;
+  try {
+    if (Number(req.headers['content-length'] || 0) > 16384) return res.status(413).json({code:'TOO_LARGE'});
+    data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (!data || JSON.stringify(data).length > 16384) return res.status(400).json({code:'INVALID_DATA'});
+  } catch {return res.status(400).json({code:'INVALID_DATA'});}
+  const get = key => typeof data[key] === 'string' ? data[key].trim() : '';
+  const name=get('name'),phone=get('phone'),email=get('email'),service=get('service'),note=get('note');
+  if (get('website') || !name || name.length>100 || /[\r\n]/.test(name) || !/^[+0-9() .-]{7,30}$/.test(phone) || phone.replace(/\D/g,'').length<7 || email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !services.has(service) || note.length>4000 || wordCount(note)>200 || !['on',true].includes(data.consent)) return res.status(400).json({code:'INVALID_FIELDS'});
+  if (!process.env.RESEND_API_KEY || !process.env.ENQUIRY_EMAIL_FROM) return res.status(503).json({code:'NOT_CONFIGURED'});
+  const text = [`Name: ${name}`,`Phone: ${phone}`,`Email: ${email}`,`Topic: ${service}`,`Note: ${note || '—'}`,`Language: ${get('language')}`, 'Consent: agreed to enquiry follow-up'].join('\n');
+  const key=createHash('sha256').update(text).digest('hex');
+  let emailAccepted;
+  try {
+    emailAccepted=await send('https://api.resend.com/emails',{'Authorization':`Bearer ${process.env.RESEND_API_KEY}`,'Idempotency-Key':key},{from:process.env.ENQUIRY_EMAIL_FROM,to:['corwindamansara@gmail.com'],reply_to:email,subject:`Legacy Planning appointment request — ${service}`,text});
+  } catch {emailAccepted=false;}
+  if (!emailAccepted) return res.status(502).json({code:'EMAIL_FAILED'});
+  let whatsapp='not_configured';
+  // An approved template is required to initiate a WhatsApp Business notification.
+  if (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ENQUIRY_TEMPLATE) {
+    try {
+      const ok=await send(`https://graph.facebook.com/v22.0/${encodeURIComponent(process.env.WHATSAPP_PHONE_NUMBER_ID)}/messages`,{'Authorization':`Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`},{messaging_product:'whatsapp',to:'60108106717',type:'template',template:{name:process.env.WHATSAPP_ENQUIRY_TEMPLATE,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en'},components:[{type:'body',parameters:[{type:'text',text:text.replace(/\s+/g,' ')}]}]}});
+      whatsapp=ok?'accepted':'failed';
+    } catch {whatsapp='failed';}
+  }
+  return res.status(200).json({email:'accepted',whatsapp});
+};
