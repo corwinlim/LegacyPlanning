@@ -1,0 +1,1 @@
+{"name":"legacyplanning","version":"1.0.0","private":true,"description":"Legacy Planning website with Gmail SMTP appointment requests","dependencies":{"nodemailer":"10.5.0"}}
