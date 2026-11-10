@@ -1,0 +1,1 @@
+Legacy Planning Preview: run `npx vercel` in this directory after logging in. Choose the intended Vercel team and a new project name `legacy-planning`. Do not use `--prod` until approved. Site files only; no research or internal drafts included. All pages retain noindex and response headers add X-Robots-Tag.
