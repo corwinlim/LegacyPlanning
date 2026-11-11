@@ -1,4 +1,5 @@
 const { createHash } = require('node:crypto');
+const { checkRateLimit } = require('../lib/rate-limit');
 const services = new Set(['Will Writing', 'Trust', 'Estate Planning', 'Estate Execution Plan']);
 const wordCount = value => (value.replace(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])/gu, ' $1 ').match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || []).length;
 const nodemailer = require('nodemailer');
@@ -7,6 +8,12 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') {res.setHeader('Allow','POST');return res.status(405).json({code:'METHOD_NOT_ALLOWED'});}
   if (!String(req.headers['content-type'] || '').startsWith('application/json')) return res.status(415).json({code:'JSON_REQUIRED'});
   if (req.headers.origin && req.headers.origin !== 'https://legacyplanning.vercel.app' && req.headers.origin !== `https://${process.env.VERCEL_URL}`) return res.status(403).json({code:'INVALID_ORIGIN'});
+  // Shared, fail-closed limiter runs before parsing or SMTP.
+  const limit = await checkRateLimit(req);
+  if (!limit.ok) {
+    if (limit.retryAfter) res.setHeader('Retry-After', String(limit.retryAfter));
+    return res.status(limit.status).json({code:limit.status===429?'RATE_LIMITED':'RATE_LIMIT_UNAVAILABLE'});
+  }
   let data;
   try {
     if (Number(req.headers['content-length'] || 0) > 16384) return res.status(413).json({code:'TOO_LARGE'});
