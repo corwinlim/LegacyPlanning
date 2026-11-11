@@ -17,4 +17,4 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - name: Run synthetic security regression tests
-        run: node --test tests/enquiry.test.js
+        run: node --test tests/*.test.js
