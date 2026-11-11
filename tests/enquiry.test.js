@@ -68,7 +68,7 @@ test('reject unexpected service',async()=>{
   const v=valid();v.service='Other';assert.equal((await run(v)).statusCode,400);
 });
 test('reject newline in name',async()=>{
-  const v=valid();v.name='Bad\\r\\nBcc:evil@example.invalid';assert.equal((await run(v)).statusCode,400);
+  const v=valid();v.name='Bad\r\nBcc:evil@example.invalid';assert.equal((await run(v)).statusCode,400);
 });
 test('reject note over 200 words',async()=>{
   const v=valid();v.note=Array(201).fill('word').join(' ');assert.equal((await run(v)).statusCode,400);
