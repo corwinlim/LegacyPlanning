@@ -16,13 +16,29 @@ module.exports = async (req, res) => {
   const get = key => typeof data[key] === 'string' ? data[key].trim() : '';
   const name=get('name'),phone=get('phone'),email=get('email'),service=get('service'),note=get('note');
   if (get('website') || !name || name.length>100 || /[\r\n]/.test(name) || !/^[+0-9() .-]{7,30}$/.test(phone) || phone.replace(/\D/g,'').length<7 || email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !services.has(service) || note.length>4000 || wordCount(note)>200 || !['on',true].includes(data.consent)) return res.status(400).json({code:'INVALID_FIELDS'});
-  if (!process.env.SMTP_PASSWORD) return res.status(503).json({code:'NOT_CONFIGURED'});
+  const rawPassword = process.env.SMTP_PASSWORD || '';
+  // A pasted app password can contain spaces or invisible formatting characters.
+  const smtpPassword = rawPassword.replace(/[\s\u200B-\u200D\u2060]/gu, '');
+  if (!/^[a-zA-Z]{16}$/.test(smtpPassword)) {
+    // Structural metadata only: never log credential characters or a hash.
+    console.error('appointment_smtp_config_invalid', JSON.stringify({
+      diagnosticVersion: 2,
+      smtpUser: 'corwinon9@gmail.com',
+      rawLength: rawPassword.length,
+      normalizedLength: smtpPassword.length,
+      hasInvisibleFormatting: /[\u200B-\u200D\u2060]/u.test(rawPassword),
+      hasEqualsSign: rawPassword.includes('='),
+      hasAtSign: rawPassword.includes('@'),
+      containsNonLetters: /[^a-zA-Z]/.test(smtpPassword)
+    }));
+    return res.status(503).json({code:'NOT_CONFIGURED'});
+  }
   const text = [`Name: ${name}`,`Phone: ${phone}`,`Email: ${email}`,`Topic: ${service}`,`Note: ${note || '—'}`,`Language: ${get('language')}`, 'Consent: agreed to enquiry follow-up'].join('\n');
   const key=createHash('sha256').update(text).digest('hex');
   let emailAccepted = false;
   const transport = nodemailer.createTransport({
     host: 'smtp.gmail.com', port: 465, secure: true,
-    auth: {user: 'corwinon9@gmail.com', pass: process.env.SMTP_PASSWORD.replace(/\s/g, '')},
+    auth: {user: 'corwinon9@gmail.com', pass: smtpPassword},
     connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000,
     logger: false, debug: false
   });
@@ -37,7 +53,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     // Log only diagnostic codes, never credentials, SMTP responses or enquiry fields.
     console.error('appointment_smtp_failure', JSON.stringify({
-      appPasswordLengthIs16: process.env.SMTP_PASSWORD.replace(/\s/g, '').length === 16,
+      appPasswordLengthIs16: smtpPassword.length === 16,
       appPasswordHasQuotes: /[\"']/.test(process.env.SMTP_PASSWORD),
       code: typeof error.code === 'string' ? error.code : 'UNKNOWN',
       responseCode: typeof error.responseCode === 'number' ? error.responseCode : null,
