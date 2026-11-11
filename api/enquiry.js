@@ -37,6 +37,8 @@ module.exports = async (req, res) => {
   } catch (error) {
     // Log only diagnostic codes, never credentials, SMTP responses or enquiry fields.
     console.error('appointment_smtp_failure', JSON.stringify({
+      appPasswordLengthIs16: process.env.SMTP_PASSWORD.replace(/\s/g, '').length === 16,
+      appPasswordHasQuotes: /[\"']/.test(process.env.SMTP_PASSWORD),
       code: typeof error.code === 'string' ? error.code : 'UNKNOWN',
       responseCode: typeof error.responseCode === 'number' ? error.responseCode : null,
       command: ['AUTH PLAIN','AUTH LOGIN','CONN','EHLO','MAIL FROM','RCPT TO','DATA'].includes(error.command) ? error.command : null
