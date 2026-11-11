@@ -22,13 +22,13 @@ module.exports = async (req, res) => {
   let emailAccepted = false;
   const transport = nodemailer.createTransport({
     host: 'smtp.gmail.com', port: 465, secure: true,
-    auth: {user: 'corwindamansara@gmail.com', pass: process.env.SMTP_PASSWORD.replace(/\s/g, '')},
+    auth: {user: 'corwinon9@gmail.com', pass: process.env.SMTP_PASSWORD.replace(/\s/g, '')},
     connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000,
     logger: false, debug: false
   });
   try {
     const info = await transport.sendMail({
-      from: 'Legacy Planning <corwindamansara@gmail.com>',
+      from: 'Legacy Planning <corwinon9@gmail.com>',
       to: 'corwindamansara@gmail.com', replyTo: email,
       subject: `Legacy Planning appointment request — ${service}`,
       text: `Reference: ${key.slice(0,12)}\nSubmitted at: ${new Date().toISOString()}\n${text}`
