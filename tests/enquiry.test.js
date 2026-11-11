@@ -7,6 +7,7 @@ function loadHandler(sendMail) {
   const originalLoad = Module._load;
   try {
     Module._load = function (name, parent, isMain) {
+      if (name === '../lib/rate-limit') return {checkRateLimit: async () => ({ok:true})};
       if (name === 'nodemailer') return {createTransport: () => ({
         sendMail: sendMail || (async () => { throw Object.assign(new Error('synthetic failure'), {code:'ECONNECTION'}); }),
         close() {}
