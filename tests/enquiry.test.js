@@ -85,7 +85,7 @@ test('fail closed without SMTP configuration',async()=>{
 });
 test('SMTP failure must not claim success',async()=>{
   const before=process.env.SMTP_PASSWORD;
-  process.env.SMTP_PASSWORD='synthetic-test-only';
+  process.env.SMTP_PASSWORD='abcdefghijklmnop';
   const originalError=console.error;
   console.error=()=>{};
   try {
@@ -98,7 +98,7 @@ test('SMTP failure must not claim success',async()=>{
 });
 test('only provider acceptance returns 200',async()=>{
   const before=process.env.SMTP_PASSWORD;
-  process.env.SMTP_PASSWORD='synthetic-test-only';
+  process.env.SMTP_PASSWORD='abcdefghijklmnop';
   try {
     const r=await run(valid(),{},async()=>({accepted:['corwindamansara@gmail.com']}));
     assert.equal(r.statusCode,200);assert.deepEqual(r.body,{email:'accepted'});
@@ -106,7 +106,7 @@ test('only provider acceptance returns 200',async()=>{
 });
 test('provider acceptance of different recipient must fail',async()=>{
   const before=process.env.SMTP_PASSWORD;
-  process.env.SMTP_PASSWORD='synthetic-test-only';
+  process.env.SMTP_PASSWORD='abcdefghijklmnop';
   try {
     const r=await run(valid(),{},async()=>({accepted:['different@example.invalid']}));
     assert.equal(r.statusCode,502);
